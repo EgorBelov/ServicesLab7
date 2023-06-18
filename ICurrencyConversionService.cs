@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.ServiceModel;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FahrenheitToCelsiusConversion
 {
@@ -13,5 +14,7 @@ namespace FahrenheitToCelsiusConversion
     {
         [OperationContract]
         decimal ConvertCurrency(decimal amount, string sourceCurrency, string targetCurrency);
+        [OperationContract]
+        Task<List<CurrencyRate>> GetAvailableCurrencies();
     }
 }

@@ -5,7 +5,9 @@ using System.Net.Http;
 using System.Runtime.Serialization;
 using System.ServiceModel;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml.Linq;
+using Newtonsoft.Json;
 
 namespace FahrenheitToCelsiusConversion
 {
@@ -32,13 +34,27 @@ namespace FahrenheitToCelsiusConversion
 
             var sourceRate = FindCurrencyRate(xml, sourceCurrency);
             var targetRate = FindCurrencyRate(xml, targetCurrency);
-
+            if (sourceCurrency == "RUB" || targetCurrency == "RUB")
+            {
+                if (sourceCurrency != targetCurrency && sourceCurrency == "RUB")
+                {
+                    var currencyElement = xml.Descendants("Valute")
+                        .FirstOrDefault(e => e.Element("CharCode")?.Value == targetCurrency.ToUpper());
+                    return new CurrencyRate { CurrencyCode = targetCurrency, Rate = 1 / decimal.Parse(currencyElement.Element("Value")?.Value) };
+                }
+                else
+                {
+                    var currencyElement = xml.Descendants("Valute")
+                        .FirstOrDefault(e => e.Element("CharCode")?.Value == targetCurrency.ToUpper());
+                    return new CurrencyRate { CurrencyCode = targetCurrency, Rate =  decimal.Parse(currencyElement.Element("Value")?.Value) };
+                }
+            }
             if (sourceRate != null && targetRate != null)
             {
-                var rate = targetRate.Rate / sourceRate.Rate;
+                var rate = sourceRate.Rate / targetRate.Rate;
                 return new CurrencyRate { CurrencyCode = targetCurrency, Rate = rate };
             }
-
+            
             return null;
         }
 
@@ -67,5 +83,23 @@ namespace FahrenheitToCelsiusConversion
 
             return null;
         }
+        public async Task<List<CurrencyRate>> GetAvailableCurrencies()
+        {
+            using (var client = new HttpClient())
+            {
+                var response = await client.GetAsync(ExchangeRatesUrl);
+                var content = await response.Content.ReadAsStringAsync();
+                var currencyData = JsonConvert.DeserializeObject<CurrencyData>(content);
+                return currencyData.Valute.Values.Select(currencyRate => new CurrencyRate
+                {
+                    CurrencyCode = currencyRate.CurrencyCode,
+                    Rate = currencyRate.Rate
+                }).ToList();
+            }
+        }
+    }
+    public class CurrencyData
+    {
+        public Dictionary<string, CurrencyRate> Valute { get; set; }
     }
 }
